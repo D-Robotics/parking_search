@@ -66,7 +66,6 @@ void ParkingSearchNode::SmartTopicCallback(
      << ", targets size: " << msg->targets.size() << "\n";
 
   for (const auto& tar : msg->targets) {
-    ss << "\t track_id: " << tar.track_id << ", type: " << tar.type;
     ss << " has roi num: " << tar.rois.size();
     ss << " has capture num: " << tar.captures.size();
     

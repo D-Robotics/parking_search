@@ -31,7 +31,7 @@ ParkingSearchEngine::ParkingSearchEngine() {
               "ParkingSearchEngine construct");
   start_ = true;
 
-  param_node_ = std::make_shared<ParametersClass>(&search_cfg_);
+  param_node_ = std::make_shared<ParametersClass>(&cfg_);
 
   parking_search_node_ = std::make_shared<ParkingSearchNode>(
       "parking_search",
@@ -135,15 +135,49 @@ void ParkingSearchEngine::FeedMovePoseMsg(const Twist::SharedPtr &pose) {
 
 void ParkingSearchEngine::ProcessSmart(
     const ai_msgs::msg::PerceptionTargets::ConstSharedPtr &ai_msg) {
-  // update track info
-  // if the track is lost, reset track info
+  // update search info
+
+  if(search_info_.finalcount > cfg_.arrived_count){
+    search_info_.search_sta = SearchStatus::ARRIVED;
+    return;
+  }
+
+  if(search_info_.find_parking){
+    RCLCPP_WARN(rclcpp::get_logger("ParkingSearchEngine"), 
+                "Find Target, current count: %d, target count: %d", 
+                search_info_.finalcount,
+                cfg_.arrived_count);
+  }
+  
 
   if (!ai_msg->targets.empty()) {
     search_info_.search_sta = SearchStatus::SEARCHING;
+  }else{
+    search_info_.search_sta = SearchStatus::INITING;
+    RCLCPP_DEBUG(rclcpp::get_logger("ParkingSearchEngine"),
+            "No ai_msg received!");
   }
-
+        
   if (SearchStatus::SEARCHING == search_info_.search_sta) {
-    int goal = 0;
+    int goal = GetStrategy(ai_msg);
+
+    // 更新当前帧的信息
+    search_info_.frame_ts_ms = ai_msg->header.stamp.sec * 1000 +
+                              ai_msg->header.stamp.nanosec / 1000 / 1000;
+    search_info_.goal = goal;
+  }
+  
+  RCLCPP_INFO(rclcpp::get_logger("ParkingSearchEngine"),
+              "search_sta: %d (0:INITING, 1:SEARCHING, 2:ARRIVED), "
+              "goal: %d, frame_ts_ms: %llu",
+              search_info_.search_sta,
+              search_info_.goal,
+              search_info_.frame_ts_ms);
+}
+
+int ParkingSearchEngine::GetStrategy(
+    const ai_msgs::msg::PerceptionTargets::ConstSharedPtr &ai_msg){
+
     for (const auto target : ai_msg->targets) {
       RCLCPP_INFO(
           rclcpp::get_logger("ParkingSearchEngine"),
@@ -151,27 +185,31 @@ void ParkingSearchEngine::ProcessSmart(
           target.rois.size(),
           target.captures.size());
 
-      // for (const auto &roi : target.rois) {
-      //   RCLCPP_DEBUG(rclcpp::get_logger("ParkingSearchEngine"),
-      //                "roi.type: %s",
-      //                roi.type.c_str());
-      //   if ("vehicle" != roi.type) {
-      //     continue;
-      //   }
+      int lock_index = cfg_.img_mid_width;
+      for (const auto &roi : target.rois) {
+        RCLCPP_DEBUG(rclcpp::get_logger("ParkingSearchEngine"),
+                     "roi.type: %s",
+                     roi.type.c_str());
 
-      //   RCLCPP_DEBUG(rclcpp::get_logger("ParkingSearchEngine"),
-      //                "vehicle roi x_offset: %d y_offset: %d width: %d height: %d",
-      //                roi.rect.x_offset,
-      //                roi.rect.y_offset,
-      //                roi.rect.width,
-      //                roi.rect.height);
+        if ("parking_lock" != roi.type) {
+          continue;
+        }
 
-      //   if(roi.rect.width > 500 || roi.rect.height > 240){
-      //       goal = static_cast<int>(CtrlType::Stay);
-      //   }
-      // }
+        RCLCPP_DEBUG(rclcpp::get_logger("ParkingSearchEngine"),
+                     "vehicle roi x_offset: %d y_offset: %d width: %d height: %d",
+                     roi.rect.x_offset,
+                     roi.rect.y_offset,
+                     roi.rect.width,
+                     roi.rect.height);
 
-
+        lock_index = static_cast<int>((lock_index + roi.rect.x_offset + static_cast<int>(roi.rect.width / 2) / 2));
+      }
+      if(lock_index > cfg_.img_mid_width){
+        return static_cast<int>(CtrlType::GoRight);
+      }else if(lock_index < cfg_.img_mid_width){
+        return static_cast<int>(CtrlType::GoLeft);
+      }
+      
       for (const auto& capture : target.captures) {
 
         int width = capture.img.width;
@@ -180,12 +218,19 @@ void ParkingSearchEngine::ProcessSmart(
 
         std::vector<int> path_space = {0, 0, 0};
         std::vector<int> parking_space = {0, 0, 0};
+        std::vector<float> parking_ious = {cfg_.sides_parking_iou, 
+                                          cfg_.mid_parking_iou,
+                                          cfg_.sides_parking_iou};
+        std::vector<float> path_ious = {cfg_.sides_path_iou, 
+                                        cfg_.mid_path_iou,
+                                        cfg_.sides_path_iou};
 
-        int width_start = int((width - 3 * search_cfg_.area_width) / 2);
-        for(int h = height - search_cfg_.ingored_bottom - search_cfg_.area_height; h < height - search_cfg_.ingored_bottom; h++){
+        int width_start = int((width - 2 * cfg_.area_width) / 2);
+        
+        for(int h = height - cfg_.ingored_bottom - cfg_.area_height; h < height - cfg_.ingored_bottom; h++){
           int index = h * width + width_start;
           for(int i = 0; i < 3; i++){
-            for(int w = i * search_cfg_.area_width; w < (i + 1) * search_cfg_.area_width; w++){
+            for(int w = i * int(cfg_.area_width / 2); w < i * int(cfg_.area_width / 2) + cfg_.area_width; w++){
               if(feature[index + w] == 0 || feature[index + w] == 2 || feature[index + w] == 3){
                 path_space[i]++;
               }else if(feature[index + w] == 4 || feature[index + w] == 5){
@@ -195,78 +240,59 @@ void ParkingSearchEngine::ProcessSmart(
           }
         }
 
-        std::vector<int> priority = {1, 2, 0}; // mid right left
-        int areas = search_cfg_.area_height * search_cfg_.area_width;
-        int parking_areas = static_cast<int>(search_cfg_.parking_thread * areas);
-        int path_areas = static_cast<int>(search_cfg_.path_thread * areas);
-        bool find_parking = false;
-        bool find_path = false;
+        int areas = cfg_.area_height * cfg_.area_width;
+        std::vector<int> parking_areas = {0, 0, 0};
+        std::vector<int> path_areas = {0, 0, 0};
+        std::vector<int> status = {0, 0, 0};
 
-        for(auto& i: priority){
-
-          if(parking_space[i] > parking_areas){
-            find_parking = true;
-            switch (i){
-              case 0: goal = static_cast<int>(CtrlType::GoLeft);
-                break;
-              case 1: goal = static_cast<int>(CtrlType::GoFront);
-                break;
-              case 2: goal = static_cast<int>(CtrlType::GoRight);
-                break;
-            }
-            break;
-            RCLCPP_DEBUG(rclcpp::get_logger("ParkingSearchEngine"),
-                        "parking_index %d", i);
+        for(int i = 0; i < 3; i++){
+          parking_areas[i] = static_cast<int>(parking_ious[i] * areas);
+          path_areas[i] = static_cast<int>(path_ious[i] * areas);
+          if((path_space[i] + parking_space[i]) > path_areas[i]){
+            status[i] = 1;
+          }
+          if(parking_space[i] > parking_areas[i]){
+            status[i] = 2;
           }
         }
-        if(!find_parking){
-         
-          for(auto& i: priority){
-            if(path_space[i] > path_areas){
-              find_path = true;
-              switch (i){
-                case 0: goal = static_cast<int>(CtrlType::GoLeft);
-                  break;
-                case 1: goal = static_cast<int>(CtrlType::GoFront);
-                  break;
-                case 2: goal = static_cast<int>(CtrlType::GoRight);
-                  break;
-              }
-              break;
-            }
-            RCLCPP_DEBUG(rclcpp::get_logger("ParkingSearchEngine"),
-                        "path_index %d", i);
-          }
+
+        if(status[0] == 2 && status[1] == 2 && status[2] == 2){
+          search_info_.find_parking = true;
+          search_info_.finalcount++;
+          return static_cast<int>(CtrlType::GoFront);
         }
-        if(!find_path){
-          goal = static_cast<int>(CtrlType::GoBack);
+
+        if(search_info_.finalcount > 0){
+          search_info_.finalcount--;
+        }
+        
+        if(status[1] == 2){
+          if(parking_space[0] > parking_space[1]){
+            return static_cast<int>(CtrlType::GoLeft);
+          }else if(parking_space[2] > parking_space[1]){
+            return static_cast<int>(CtrlType::GoRight);
+          }
+          return static_cast<int>(CtrlType::GoFront);
+        }else if(status[0] == 2){
+          return static_cast<int>(CtrlType::GoLeft);
+        }else if(status[2] == 2){
+          return static_cast<int>(CtrlType::GoRight);
+        }
+
+        if(status[1] == 1){
+          return static_cast<int>(CtrlType::GoFront);
+        }else if(status[0] == 1){
+          return static_cast<int>(CtrlType::GoLeft);
+        }else if(status[2] == 1){
+          return static_cast<int>(CtrlType::GoRight);
+        }else{
+          search_info_.find_parking = false;
+          search_info_.finalcount = 0;
+          return static_cast<int>(CtrlType::GoBack);
         }
       }
     }
-
-    // 更新当前帧的信息
-    search_info_.frame_ts_ms = ai_msg->header.stamp.sec * 1000 +
-                              ai_msg->header.stamp.nanosec / 1000 / 1000;
-    search_info_.goal = goal;
-    
-
-  } else if (SearchStatus::INITING == search_info_.search_sta ||
-             SearchStatus::LOST == search_info_.search_sta) {
-
-    if (ai_msg->targets.empty()) {
-      RCLCPP_DEBUG(rclcpp::get_logger("ParkingSearchEngine"),
-              "No ai_msg received!");
-      return;
-    }
-
-  }
-  
-  RCLCPP_INFO(rclcpp::get_logger("ParkingSearchEngine"),
-              "search_sta: %d (0:INITING, 1:SEARCHING, 2:LOST), "
-              "goal: %d, frame_ts_ms: %llu",
-              search_info_.search_sta,
-              search_info_.goal,
-              search_info_.frame_ts_ms);
+    return static_cast<int>(CtrlType::Stay);
 }
 
 void ParkingSearchEngine::RunStrategy(
@@ -277,13 +303,12 @@ void ParkingSearchEngine::RunStrategy(
 
   ProcessSmart(msg);
 
-  if (SearchStatus::SEARCHING != search_info_.search_sta) {
-    RCLCPP_DEBUG(rclcpp::get_logger("ParkingSearchEngine"), "search is lost");
+  if (SearchStatus::INITING == search_info_.search_sta) {
+    RCLCPP_DEBUG(rclcpp::get_logger("ParkingSearchEngine"), "search is initing");
     CancelMove();
     return;
-  }
-
-  if (static_cast<int>(CtrlType::Stay) == search_info_.goal) {
+  }else if (SearchStatus::ARRIVED == search_info_.search_sta) {
+    RCLCPP_WARN(rclcpp::get_logger("ParkingSearchEngine"), "Parking Area Arrived !!!");
     CancelMove();
     return;
   }
@@ -305,24 +330,24 @@ void ParkingSearchEngine::RunStrategy(
   if (static_cast<int>(CtrlType::GoFront) == 
             search_info_.goal) {
     // move front
-    DoMove(static_cast<int>(DirectionType::FRONT), search_cfg_.move_step);
+    DoMove(static_cast<int>(DirectionType::FRONT), cfg_.move_step);
     return;
   } else if (static_cast<int>(CtrlType::GoBack) ==
              search_info_.goal) {
     // move back
-    DoMove(static_cast<int>(DirectionType::BACK), search_cfg_.move_step);
+    DoMove(static_cast<int>(DirectionType::BACK), cfg_.move_step);
     return;
   } else if (static_cast<int>(CtrlType::GoRight) ==
              search_info_.goal) {
     // rotate right
     DoRotate(static_cast<int>(DirectionType::RIGHT),
-             search_cfg_.rotate_step);
+             cfg_.rotate_step);
     return;
   } else if (static_cast<int>(CtrlType::GoLeft) ==
              search_info_.goal) {
     // rotate left
     DoRotate(static_cast<int>(DirectionType::LEFT),
-             search_cfg_.rotate_step);
+             cfg_.rotate_step);
     return;
   }
 

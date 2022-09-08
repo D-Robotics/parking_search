@@ -43,6 +43,7 @@ class ParkingSearchEngine {
   ParkingSearchEngine();
 
   void RunStrategy(const ai_msgs::msg::PerceptionTargets::ConstSharedPtr &msg);
+  int GetStrategy(const ai_msgs::msg::PerceptionTargets::ConstSharedPtr &msg);
   void ProcessSmart(const ai_msgs::msg::PerceptionTargets::ConstSharedPtr &msg);
   // rotate robot
   // direction: 0 left, 1 right; unit of step is radian
@@ -67,7 +68,7 @@ class ParkingSearchEngine {
   std::shared_ptr<std::thread> smart_process_task_ = nullptr;
   std::shared_ptr<std::thread> feed_pose_task_ = nullptr;
 
-  SearchCfg search_cfg_;
+  SearchCfg cfg_;
   bool last_ctrl_is_cancel_ = false;
 };
 
