@@ -37,13 +37,16 @@ def generate_launch_description():
         parameters=[
             {"ai_msg_sub_topic_name": "/ai_msg_parking_perception"},
             {"twist_pub_topic_name": "/cmd_vel"},
-            {"detect_area_height": 50},
-            {"detect_area_width": 80},
-            {"area_ingored_bottom": 30},
-            {"parking_space_thread": 0.7},
-            {"path_space_thread": 0.3},
+            {"area_height": 40},
+            {"area_width": 120},
+            {"ingored_bottom": 40},
+            {"mid_parking_iou": 0.7},
+            {"sides_parking_iou": 0.6},
+            {"mid_path_iou": 0.9},
+            {"sides_parking_iou": 0.8},
+            {"arrived_count": 400},
             {"move_step": 0.1},
-            {"rotate_step": 0.5}
+            {"rotate_step": 0.1}
         ],
         arguments=['--ros-args', '--log-level', 'warn']
     )
@@ -133,7 +136,6 @@ def generate_launch_description():
         executable='parking_perception',
         output='screen',
         parameters=[
-            {"feed_image": ""},
             {"ai_msg_pub_topic_name": "ai_msg_parking_perception"},
             {"dump_render_img": 0}
         ],

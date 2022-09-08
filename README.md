@@ -8,14 +8,24 @@ parking_search package功能为通过车位检测算法指导机器人运动到�
 
 ## 控制策略
 
-将视野场景区域分为“左”、“中”、“右”三个区域。计算每个区域内停车区域和行车区域的IOU阈值，判断前进方向。若二者区域皆低于阈值，则采用后退重新计算判断
+将视野场景区域分为“左”、“中”、“右”三个区域。计算每个区域内停车区域和行车区域的IOU，根据阈值判断对应区域类型，判断前进方向。若二者区域皆低于阈值，则采用后退重新计算判断。
 
-IOU阈值上限：0.7
+| 视野区域 | 左 | 中 | 右 |
+| - | - | - | - |
+| 停车区域 IOU | 0.6 | 0.7 | 0.6 |
+| 行车区域 IOU | 0.8 | 0.9 | 0.8 |
 
-IOU阈值下线：0.3
+<img src="images/view_area.png" width="484" height="260"  alt="view_area"/><br/>
 
-优先级：停车区域 > 行车区域 > 其他区域
-       中间区域 > 右边区域 > 左边区域
+## 决策优先级
+
+停车区域 > 行车区域 > 其他区域
+       
+中间区域 > 右边区域 > 左边区域
+
+## 算法流程图
+
+<img src="images/workflow.png" width="465" height="485"  alt="workflow"/><br/>
 
 # 编译
 
@@ -61,7 +71,7 @@ ai_msgs为自定义的消息格式，用于算法模型推理后，发布推理�
 
    - 编译命令：
 
-```
+```shell
 export TARGET_ARCH=aarch64
 export TARGET_TRIPLE=aarch64-linux-gnu
 export CROSS_COMPILE=/usr/bin/$TARGET_TRIPLE-
@@ -89,13 +99,16 @@ colcon build --packages-select parking_search \
 
 | 参数名                    | 类型        | 解释                                           | 是否必须 | 支持的配置                                                                                              | 默认值                        | 是否支持运行时动态配置 |
 | ------------------------- | ----------- | ---------------------------------------------- | -------- | ------------------------------------------------------------------------------------------------------- | ----------------------------- | ---------------------- |
-| detect_area_height | int         | 每个检测区域高度 | 否       | 0-(160-area_ingored_bottom)                                                                                                  | 60                           | 否                     |
-| detect_area_width   | int         | 每个检测区域宽度                             | 否       | 0-80                                                                               | 80                             | 否                     |
-| area_ingored_bottom   | int         | 忽略底部高度                             | 否       | 0-(160-detect_area_height)                                                                               | 30                             | 否                     |
-| parking_space_thread                 | float       | 停车区域检测IOU阈值                       | 否       | 0-1                                                                                                  | 0.7                           |否                     | 
-| path_space_thread                 | float       | 行车区域检测IOU阈值                       | 否       | 0-1                                                                                                  | 0.3                           | 否                     |
+| area_height | int         | 每个检测区域高度 | 否       | 0-(160-ingored_bottom)                                                                                                  | 40                           | 否                     |
+| area_width   | int         | 每个检测区域宽度                             | 否       | 0-160                                                                               | 120                             | 否                     |
+| ingored_bottom   | int         | 忽略底部高度                             | 否       | 0-(160-area_height)                                                                               | 40                             | 否                     |
+| mid_parking_iou                 | float       | 停车区域检测IOU阈值                       | 否       | 0-1                                                                                                  | 0.7                           |否                     | 
+| sides_parking_iou                 | float       | 行车区域检测IOU阈值                       | 否       | 0-1                                                                                                  | 0.6                           | 否                     |
+| mid_path_iou                 | float       | 停车区域检测IOU阈值                       | 否       | 0-1                                                                                                  | 0.9                           | 否                     |
+| sides_path_iou                 | float       | 行车区域检测IOU阈值                       | 否       | 0-1                                                                                                  | 0.8                           | 否                     |
+| arrived_count | int         | 判断进入车位的条件计数 | 否       | 大于0                                                                                                  | 400                           | 否                     |
 | move_step                 | float       | 平移运动的步长，单位米。                       | 否       | 无限制                                                                                                  | 0.1                           | 是                     |
-| rotate_step               | float       | 旋转运动的步长，单位弧度。                     | 否       | 无限制                                                                                                  | 0.5                           | 是                     |
+| rotate_step               | float       | 旋转运动的步长，单位弧度。                     | 否       | 无限制                                                                                                  | 0.1                           | 是                     |
 | twist_pub_topic_name      | std::string | 发布Twist类型的运动控制消息的topic名           | 否       | 根据实际部署环境配置。一般机器人订阅的topic为/cmd_vel，ROS2 turtlesim示例订阅的topic为turtle1/cmd_vel。 | /cmd_vel                      | 否                     |
 | ai_msg_sub_topic_name     | std::string | 订阅包含停车区域结果的AI消息的topic名          | 否       | 根据实际部署环境配置                                                                                    | /ai_msg_parking_perception | 否                     |
 
@@ -105,19 +118,22 @@ colcon build --packages-select parking_search \
 
 ### **Ubuntu**
 
-```
+```shell
 export COLCON_CURRENT_PREFIX=./install
 source ./install/setup.bash
 # config中为示例使用的模型，根据实际安装路径进行拷贝
 # 如果是板端编译（无--merge-install编译选项），拷贝命令为cp -r install/PKG_NAME/lib/PKG_NAME/config/ .，其中PKG_NAME为具体的package名。
 cp -r install/lib/parking_perception/config/ .
 
-ros2 launch install/share/parking_search/launch/hobot_parking_perception.launch.py
+# mipi摄像头输入
+export CAM_TYPE=mipi
+
+ros2 launch parking_search hobot_parking_search.launch.py
 ```
 
 ### **Linux**
 
-```
+```shell
 export ROS_LOG_DIR=/userdata/
 export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:./install/lib/
 
@@ -151,20 +167,53 @@ cp -r install/lib/parking_perception/config/ .
 
 ## X3结果展示
 
-```
-
-[parking_search-4] [WARN] [1661942399.306904646] [ParkingSearchEngine]: do move, direction: 1, step: 0.100000
-[parking_search-4] [WARN] [1661942399.343490021] [ParkingSearchEngine]: do move, direction: 1, step: 0.100000
-[parking_perception-3] [WARN] [1661942399.347396979] [parking_perception]: input fps: 25.00, out fps: 18.67
-[parking_search-4] [WARN] [1661942399.410602188] [ParkingSearchEngine]: do move, direction: 1, step: 0.100000
-[parking_search-4] [WARN] [1661942399.449585563] [ParkingSearchEngine]: do move, direction: 1, step: 0.100000
+1. 小车在行车区域搜寻前进时log信息
 
 ```
+[parking_search-4] [WARN] [1661942399.306904646] [ParkingSearchEngine]: do move, direction: 0, step: 0.100000
+[parking_search-4] [WARN] [1661942399.343490021] [ParkingSearchEngine]: do move, direction: 0, step: 0.100000
+[parking_perception-3] [WARN] [1661942399.347396979] [parking_perception]: input fps: 29.97, out fps: 29.67
+[parking_search-4] [WARN] [1661942399.410602188] [ParkingSearchEngine]: do move, direction: 0, step: 0.100000
+[parking_search-4] [WARN] [1661942399.449585563] [ParkingSearchEngine]: do move, direction: 0, step: 0.100000
+```
 
-以上log截取了部分通过停车区域寻找的处理结果。
+2. 小车发现车位后转向时log信息
+
+```
+[parking_search-4] [WARN] [1662539779.408424498] [ParkingSearchEngine]: do rotate, direction: 2, step: 0.100000
+[parking_search-4] [WARN] [1662539779.442805415] [ParkingSearchEngine]: do rotate, direction: 2, step: 0.100000
+[parking_search-4] [WARN] [1662539779.483669831] [ParkingSearchEngine]: do rotate, direction: 2, step: 0.100000
+[parking_search-4] [WARN] [1662539779.522690915] [ParkingSearchEngine]: do rotate, direction: 2, step: 0.100000
+[parking_search-4] [WARN] [1662539779.563660873] [ParkingSearchEngine]: do rotate, direction: 2, step: 0.100000
+[parking_perception-3] [WARN] [1662539779.595755290] [parking_perception]: input fps: 29.87, out fps: 29.63
+[parking_search-4] [WARN] [1662539779.604272498] [ParkingSearchEngine]: do rotate, direction: 2, step: 0.100000
+```
+
+3. 小车确定车位后前进并最终停止时log信息
+
+```
+[parking_search-4] [WARN] [1662539796.196264298] [ParkingSearchEngine]: do move, direction: 0, step: 0.100000
+[parking_search-4] [WARN] [1662539796.227805589] [ParkingSearchEngine]: Find Target, current count: %d, target count: 400
+[parking_search-4] [WARN] [1662539796.267424798] [ParkingSearchEngine]: do move, direction: 0, step: 0.100000
+[parking_search-4] [WARN] [1662539796.317332964] [ParkingSearchEngine]: Find Target, current count: %d, target count: 400
+[parking_search-4] [WARN] [1662539796.346787673] [ParkingSearchEngine]: do move, direction: 0, step: 0.100000
+[parking_search-4] [WARN] [1662539796.386203756] [ParkingSearchEngine]: Find Target, current count: %d, target count: 400
+[parking_perception-3] [WARN] [1662539796.428427089] [ParkingSearchEngine]: input fps: 29.90, out fps: 29.74
+[parking_search-4] [WARN] [1662539796.465178589] [ParkingSearchEngine]: Parking Area Arrived !!!
+[parking_search-4] [WARN] [1662539796.506218048] [ParkingSearchEngine]: Parking Area Arrived !!!
+[parking_search-4] [WARN] [1662539796.547036881] [ParkingSearchEngine]: Parking Area Arrived !!!
+
+```
 
 ## web效果展示
 
+在实践停车场景下检测效果
+
+<img src="images/render.png" width="640" height="320"  alt="智能结果"/><br/>
 
 
 # 常见问题
+
+Q1: 使用不同分辨率相机输入时，app功能达不到预期
+
+A1: 目前对超过640x320分辨率的数据，算法只处理640x320分辨率内的智能结果，因此需要修改区域大小的参数(area_height, area_width, ingored_bottom)适配不同分辨率。建议采用默认输入分辨率。

@@ -41,25 +41,36 @@ enum class CtrlType {
   Stay = 5,
 };
 
-enum class SearchStatus { INITING = 0, SEARCHING, LOST };
+enum class SearchStatus { INITING = 0, SEARCHING, ARRIVED };
 
 struct SearchInfo {
   SearchStatus search_sta = SearchStatus::INITING;
   uint64_t frame_ts_ms = 0;
   int goal = 0;
-  // int direction = -1;
+  int finalcount = 0;
+  bool find_parking = false;
 };
 
 struct SearchCfg {
-  int area_height = 60;
-  int area_width = 80;
-  int ingored_bottom = 30;
+  // define area parm
+  int area_height = 40;
+  int area_width = 120;
+  int ingored_bottom = 40;
 
-  float parking_thread = 0.7;
-  float path_thread = 0.3;
+  // define iou parm
+  float mid_parking_iou = 0.7;
+  float sides_parking_iou = 0.6;
+  float mid_path_iou = 0.9;
+  float sides_path_iou = 0.8;
 
+  // define arrived count
+  int arrived_count = 400;
+
+  // define robot step
   float move_step = 0.1;
-  float rotate_step = 0.5;
+  float rotate_step = 0.1;
+
+  int img_mid_width = 320;
 };
 
 #endif  // COMMON_H
