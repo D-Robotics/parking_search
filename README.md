@@ -193,11 +193,11 @@ cp -r install/lib/parking_perception/config/ .
 
 ```
 [parking_search-4] [WARN] [1662539796.196264298] [ParkingSearchEngine]: do move, direction: 0, step: 0.100000
-[parking_search-4] [WARN] [1662539796.227805589] [ParkingSearchEngine]: Find Target, current count: %d, target count: 400
+[parking_search-4] [WARN] [1662539796.227805589] [ParkingSearchEngine]: Find Target, current count: 398, target count: 400
 [parking_search-4] [WARN] [1662539796.267424798] [ParkingSearchEngine]: do move, direction: 0, step: 0.100000
-[parking_search-4] [WARN] [1662539796.317332964] [ParkingSearchEngine]: Find Target, current count: %d, target count: 400
+[parking_search-4] [WARN] [1662539796.317332964] [ParkingSearchEngine]: Find Target, current count: 399, target count: 400
 [parking_search-4] [WARN] [1662539796.346787673] [ParkingSearchEngine]: do move, direction: 0, step: 0.100000
-[parking_search-4] [WARN] [1662539796.386203756] [ParkingSearchEngine]: Find Target, current count: %d, target count: 400
+[parking_search-4] [WARN] [1662539796.386203756] [ParkingSearchEngine]: Find Target, current count: 400, target count: 400
 [parking_perception-3] [WARN] [1662539796.428427089] [ParkingSearchEngine]: input fps: 29.90, out fps: 29.74
 [parking_search-4] [WARN] [1662539796.465178589] [ParkingSearchEngine]: Parking Area Arrived !!!
 [parking_search-4] [WARN] [1662539796.506218048] [ParkingSearchEngine]: Parking Area Arrived !!!
