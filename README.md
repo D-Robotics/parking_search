@@ -1,75 +1,73 @@
-# 功能介绍
+English| [简体中文](./README_cn.md)
 
-parking_search package功能为通过车位检测算法指导机器人运动到停车位。
+# Function Introduction
 
-订阅智能结果ai_msgs，运行策略，确定车位位置和机器人控制策略。
+The parking_search package functions to guide the robot to the parking space using parking detection algorithms.
 
-通过发布消息直接控制机器人旋转和平移运动。
+Subscribe to intelligent results ai_msgs, run strategies to determine the parking space location and robot control strategies.
 
-## 控制策略
+Control the robot's rotation and translation directly by publishing messages.
 
-将视野场景区域分为“左”、“中”、“右”三个区域。计算每个区域内停车区域和行车区域的IOU，根据阈值判断对应区域类型，判断前进方向。若二者区域皆低于阈值，则采用后退重新计算判断。
+## Control Strategy
 
-| 视野区域 | 左 | 中 | 右 |
+Divide the field of view into "left", "middle", and "right" areas. Calculate the IOU of parking area and driving area in each region, determine the corresponding area type based on the threshold, and judge the direction of progression. If both areas are below the threshold, adopt reversing for recalculating and judgment.
+
+| Field of View | Left | Middle | Right |
 | - | - | - | - |
-| 停车区域 IOU | 0.6 | 0.7 | 0.6 |
-| 行车区域 IOU | 0.8 | 0.9 | 0.8 |
+| Parking Area IOU | 0.6 | 0.7 | 0.6 |
+| Driving Area IOU | 0.8 | 0.9 | 0.8 |
 
-<img src="images/view_area.png" width="484" height="260"  alt="view_area"/><br/>
+<img src="images/view_area.png" width="484" height="260" alt="view_area"/><br/>
 
-## 决策优先级
+## Decision Priority
 
-停车区域 > 行车区域 > 其他区域
-       
-中间区域 > 右边区域 > 左边区域
+Parking Area > Driving Area > Other Areas
 
-## 算法流程图
+Middle Area > Right Area > Left Area
 
-<img src="images/workflow.png" width="465" height="485"  alt="workflow"/><br/>
+## Algorithm Flowchart
 
-# 编译
+<img src="images/workflow.png" width="465" height="485" alt="workflow"/><br/>
 
-## 依赖库
+# Compilation
 
-ros package：
+## Dependencies
 
-\- ai_msgs
+ROS packages:
 
-ai_msgs为自定义的消息格式，用于算法模型推理后，发布推理结果，ai_msgs pkg定义在hobot_msgs中。
+- ai_msgs
 
-## 开发环境
+ai_msgs is a custom message format used to publish the inference results after the algorithm model reasoning. The ai_msgs package is defined in hobot_msgs.
 
-\- 编程语言: C/C++
+## Development Environment
 
-\- 开发平台: X3/X86
+- Programming Language: C/C++
 
-\- 系统版本：Ubuntu 20.0.4
+- Development Platform: X3/X86
 
-\- 编译工具链:Linux GCC 9.3.0/Linaro GCC 9.3.0
+- System Version: Ubuntu 20.0.4
 
-## **编译**
+- Compilation Toolchain: Linux GCC 9.3.0/Linaro GCC 9.3.0
 
- 支持在X3 Ubuntu系统上编译和在PC上使用docker交叉编译两种方式。
+## **Compilation**### **Compilation on Ubuntu Board**
 
-### **Ubuntu板端编译**
+1. Compilation Environment Confirmation
+   - The X3 Ubuntu system is installed on the board.
+   - The current compilation terminal has set the TogetherROS environment variable: `source PATH/setup.bash`. Here, PATH represents the installation path of TogetherROS.
+   - The ROS2 compilation tool colcon is installed with the command: `pip install -U colcon-common-extensions`
+2. Compilation
 
-1. 编译环境确认 
-   - 板端已安装X3 Ubuntu系统。
-   - 当前编译终端已设置TogetherROS环境变量：`source PATH/setup.bash`。其中PATH为TogetherROS的安装路径。
-   - 已安装ROS2编译工具colcon，安装命令：`pip install -U colcon-common-extensions`
-2. 编译
+Compilation command: `colcon build --packages-select parking_search`
 
-编译命令：`colcon build --packages-select parking_search`
+### Docker Cross-Compilation
 
-### Docker交叉编译
+1. Compilation Environment Confirmation
 
-1. 编译环境确认
+   - Compilation in docker, with TogetherROS already installed in docker. For docker installation, cross-compilation instructions, TogetherROS compilation, and deployment instructions, refer to the README.md in the robot development platform's robot_dev_config repo.
 
-   - 在docker中编译，并且docker中已经安装好TogetherROS。docker安装、交叉编译说明、TogetherROS编译和部署说明详见机器人开发平台robot_dev_config repo中的README.md。
+2. Compilation
 
-2. 编译
-
-   - 编译命令：
+   - Compilation command:
 
 ```shell
 export TARGET_ARCH=aarch64
@@ -84,48 +82,48 @@ colcon build --packages-select parking_search \
    -DCMAKE_TOOLCHAIN_FILE=`pwd`/robot_dev_config/aarch64_toolchainfile.cmake
 ```
 
-## 注意事项
+## Notes
 
-# 使用介绍
+# Usage Introduction
 
-## 依赖
+## Dependencies
 
-- mipi_cam package：发布图片msg
-- hobot_codec package：jpeg图片编码&发布
-- parking_perception package：发布车位信息感知结果msg
-- websocket package：渲染图片和ai感知msg
+- mipi_cam package: Publishes image msg
+- hobot_codec package: JPEG image encoding & publishing
+- parking_perception package: Publishes parking spot information perception results msg
+- websocket package: Renders images and AI perception msg
 
-## 参数
+## Parameters
 
-| 参数名                    | 类型        | 解释                                           | 是否必须 | 支持的配置                                                                                              | 默认值                        | 是否支持运行时动态配置 |
+| Parameter Name             | Type       | Explanation                                   | Required | Supported Configurations                                                                                | Default Value                 | Supports Runtime Dynamic Configuration |
 | ------------------------- | ----------- | ---------------------------------------------- | -------- | ------------------------------------------------------------------------------------------------------- | ----------------------------- | ---------------------- |
-| area_height | int         | 每个检测区域高度 | 否       | 0-(160-ingored_bottom)                                                                                                  | 40                           | 否                     |
-| area_width   | int         | 每个检测区域宽度                             | 否       | 0-160                                                                               | 120                             | 否                     |
-| ingored_bottom   | int         | 忽略底部高度                             | 否       | 0-(160-area_height)                                                                               | 40                             | 否                     |
-| mid_parking_iou                 | float       | 停车区域检测IOU阈值                       | 否       | 0-1                                                                                                  | 0.7                           |否                     | 
-| sides_parking_iou                 | float       | 行车区域检测IOU阈值                       | 否       | 0-1                                                                                                  | 0.6                           | 否                     |
-| mid_path_iou                 | float       | 停车区域检测IOU阈值                       | 否       | 0-1                                                                                                  | 0.9                           | 否                     |
-| sides_path_iou                 | float       | 行车区域检测IOU阈值                       | 否       | 0-1                                                                                                  | 0.8                           | 否                     |
-| arrived_count | int         | 判断进入车位的条件计数 | 否       | 大于0                                                                                                  | 400                           | 否                     |
-| move_step                 | float       | 平移运动的步长，单位米。                       | 否       | 无限制                                                                                                  | 0.1                           | 是                     |
-| rotate_step               | float       | 旋转运动的步长，单位弧度。                     | 否       | 无限制                                                                                                  | 0.1                           | 是                     |
-| twist_pub_topic_name      | std::string | 发布Twist类型的运动控制消息的topic名           | 否       | 根据实际部署环境配置。一般机器人订阅的topic为/cmd_vel，ROS2 turtlesim示例订阅的topic为turtle1/cmd_vel。 | /cmd_vel                      | 否                     |
-| ai_msg_sub_topic_name     | std::string | 订阅包含停车区域结果的AI消息的topic名          | 否       | 根据实际部署环境配置                                                                                    | /ai_msg_parking_perception | 否                     |
+| area_height | int | Height of each detection area | No | 0-(160-ingored_bottom) | 40 | No |
+| area_width | int | Width of each detection area | No | 0-160 | 120 | No |
+| ingored_bottom | int | Height to be ignored at the bottom | No | 0-(160-area_height) | 40 | No |
+| mid_parking_iou | float | IOU threshold for parking area detection | No | 0-1 | 0.7 | No |
+| sides_parking_iou | float | IOU threshold for driving area detection | No | 0-1 | 0.6 | No |
+| mid_path_iou | float | IOU threshold for parking area detection | No | 0-1 | 0.9 | No |
+| sides_path_iou | float | IOU threshold for driving area detection | No | 0-1 | 0.8 | No |
+| arrived_count | int | Condition count for determining entry into parking space | No | Greater than 0 | 400 | No |
+| move_step | float | Step length for translational motion, unit: meters | No | Unrestricted | 0.1 | Yes |
+| rotate_step | float | Step length for rotational motion, unit: radians | No | Unrestricted | 0.1 | Yes |
+| twist_pub_topic_name | std::string | Topic name for publishing Twist-type motion control messages | No | Configured based on actual deployment environment. Generally, the topic subscribed by the robot is /cmd_vel, and the topic subscribed by ROS2 turtlesim example is turtle1/cmd_vel. | /cmd_vel | No |
+| ai_msg_sub_topic_name | std::string | Topic name for subscribing AI messages containing parking area results | No | Configured based on actual deployment environment | /ai_msg_parking_perception | No |
 
-## 运行
+## Run
 
-编译成功后，将生成的install路径拷贝到地平线X3开发板上（如果是在X3上编译，忽略拷贝步骤），并执行如下命令运行：
+After successful compilation, copy the generated installation path to the Horizon X3 development board (if compiling on X3, ignore the copying step), and execute the following commands to run:
 
 ### **Ubuntu**
 
 ```shell
 export COLCON_CURRENT_PREFIX=./install
 source ./install/setup.bash
-# config中为示例使用的模型，根据实际安装路径进行拷贝
-# 如果是板端编译（无--merge-install编译选项），拷贝命令为cp -r install/PKG_NAME/lib/PKG_NAME/config/ .，其中PKG_NAME为具体的package名。
+# The config here is a model used for demonstration, copy it according to the actual installation path
+# If compiling on the board end (without --merge-install compilation option), the copy command is cp -r install/PKG_NAME/lib/PKG_NAME/config/ ., where PKG_NAME is the specific package name.
 cp -r install/lib/parking_perception/config/ .
 
-# mipi摄像头输入
+# MIPI camera input
 export CAM_TYPE=mipi
 
 ros2 launch parking_search parking_search.launch.py
@@ -137,37 +135,35 @@ ros2 launch parking_search parking_search.launch.py
 export ROS_LOG_DIR=/userdata/
 export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:./install/lib/
 
-# config中为示例使用的模型，根据实际安装路径进行拷贝
+# The config here is a model used for demonstration, copy it according to the actual installation path
 cp -r install/lib/parking_perception/config/ .
 
-# 启动图片发布pkg
+# Start the image publishing package
 ./install/lib/mipi_cam/mipi_cam --ros-args -p out_format:=nv12 -p image_width:=640 -p image_height:=320 -p io_method:=shared_mem --log-level error &
-# 启动jpeg图片编码&发布pkg
+# Start the JPEG image encoding & publishing package
 ./install/lib/hobot_codec/hobot_codec_republish --ros-args -p channel:=1 -p in_mode:=shared_mem -p in_format:=nv12 -p out_mode:=ros -p out_format:=jpeg -p sub_topic:=/hbmem_img -p pub_topic:=/image_jpeg --ros-args --log-level error &
-# 启动停车区域检测pkg
+# Start the parking area detection package
 ./install/lib/parking_perception/parking_perception --ros-args --log-level error &
-# 启动web展示pkg
+# Start the web display package
 ./install/lib/websocket/websocket --ros-args -p image_topic:=/image_jpeg -p image_type:=mjpeg -p smart_topic:=/ai_msg_parking_perception --log-level error &
-
-# 启动停车区域寻找pkg
+```# Start parking area search pkg
 ./install/lib/parking_search/parking_search
-```
 
-## 注意事项
+## Notes
 
-1. 板端使用launch启动，需要安装依赖，安装命令：`pip3 install lark-parser`。设备上只需要配置一次，断电重启不需要重新配置。
-2. 启动小车运动pkg，需要配置驱动：`cp install/lib/xrrobot/config/58-xrdev.rules /etc/udev/rules.d/`，拷贝后重启X3开发板。设备上只需要配置一次，断电重启不需要重新配置。
-3. 第一次运行web展示需要启动webserver服务，运行方法为:
+1. To start the board-end using launch, dependencies need to be installed with the command: `pip3 install lark-parser`. Configuration only needs to be done once on the device, and does not need to be reconfigured after power outage restart.
+2. To start the car motion pkg, the driver needs to be configured: `cp install/lib/xrrobot/config/58-xrdev.rules /etc/udev/rules.d/`, then restart the X3 development board after copying. Configuration only needs to be done once on the device, and does not need to be reconfigured after power outage restart.
+3. The first time running the web display requires starting the webserver service, the method is as follows:
 
-- cd 到websocket的部署路径下：`cd install/lib/websocket/webservice/`（如果是板端编译（无--merge-install编译选项）执行命令为`cd install/websocket/lib/websocket/webservice`）
-- 启动nginx：`chmod +x ./sbin/nginx && ./sbin/nginx -p .`
-- 设备重启需要重新配置。
+- cd to the deployment path of websocket: `cd install/lib/websocket/webservice/` (if compiling on the board end (without the --merge-install compilation option), execute the command `cd install/websocket/lib/websocket/webservice`)
+- Start nginx: `chmod +x ./sbin/nginx && ./sbin/nginx -p .`
+- Configuration needs to be redone after device restart.
 
-# 结果分析
+# Results Analysis
 
-## X3结果展示
+## X3 Results Display
 
-1. 小车在行车区域搜寻前进时log信息
+1. Log information when the car is searching forward in the driving area
 
 ```
 [parking_search-4] [WARN] [1661942399.306904646] [ParkingSearchEngine]: do move, direction: 0, step: 0.100000
@@ -177,7 +173,7 @@ cp -r install/lib/parking_perception/config/ .
 [parking_search-4] [WARN] [1661942399.449585563] [ParkingSearchEngine]: do move, direction: 0, step: 0.100000
 ```
 
-2. 小车发现车位后转向时log信息
+2. Log information when the car turns after finding a parking space
 
 ```
 [parking_search-4] [WARN] [1662539779.408424498] [ParkingSearchEngine]: do rotate, direction: 2, step: 0.100000
@@ -189,7 +185,7 @@ cp -r install/lib/parking_perception/config/ .
 [parking_search-4] [WARN] [1662539779.604272498] [ParkingSearchEngine]: do rotate, direction: 2, step: 0.100000
 ```
 
-3. 小车确定车位后前进并最终停止时log信息
+3. Log information when the car moves forward and finally stops after confirming the parking space
 
 ```
 [parking_search-4] [WARN] [1662539796.196264298] [ParkingSearchEngine]: do move, direction: 0, step: 0.100000
@@ -198,22 +194,22 @@ cp -r install/lib/parking_perception/config/ .
 [parking_search-4] [WARN] [1662539796.317332964] [ParkingSearchEngine]: Find Target, current count: 399, target count: 400
 [parking_search-4] [WARN] [1662539796.346787673] [ParkingSearchEngine]: do move, direction: 0, step: 0.100000
 [parking_search-4] [WARN] [1662539796.386203756] [ParkingSearchEngine]: Find Target, current count: 400, target count: 400
-[parking_perception-3] [WARN] [1662539796.428427089] [ParkingSearchEngine]: input fps: 29.90, out fps: 29.74
+```[parking_perception-3] [WARN] [1662539796.428427089] [ParkingSearchEngine]: input fps: 29.90, out fps: 29.74
 [parking_search-4] [WARN] [1662539796.465178589] [ParkingSearchEngine]: Parking Area Arrived !!!
 [parking_search-4] [WARN] [1662539796.506218048] [ParkingSearchEngine]: Parking Area Arrived !!!
 [parking_search-4] [WARN] [1662539796.547036881] [ParkingSearchEngine]: Parking Area Arrived !!!
 
 ```
 
-## web效果展示
+## Web Display Effect
 
-在实践停车场景下检测效果
+Detection effect in parking scenario
 
-<img src="images/render.png" width="640" height="320"  alt="智能结果"/><br/>
+<img src="images/render.png" width="640" height="320"  alt="Intelligent Result"/><br/>
 
 
-# 常见问题
+# FAQs
 
-Q1: 使用不同分辨率相机输入时，app功能达不到预期
+Q1: The app functions do not meet expectations when using cameras with different resolutions.
 
-A1: 目前对超过640x320分辨率的数据，算法只处理640x320分辨率内的智能结果，因此需要修改区域大小的参数(area_height, area_width, ingored_bottom)适配不同分辨率。建议采用默认输入分辨率。
+A1: Currently, the algorithm only processes intelligent results within the 640x320 resolution for data exceeding this resolution. Therefore, it is necessary to modify the parameters of the region size (area_height, area_width, ignored_bottom) to adapt to different resolutions. It is recommended to use the default input resolution.
