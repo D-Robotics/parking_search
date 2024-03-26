@@ -49,7 +49,9 @@ ai_msgs is a custom message format used to publish the inference results after t
 
 - Compilation Toolchain: Linux GCC 9.3.0/Linaro GCC 9.3.0
 
-## **Compilation**### **Compilation on Ubuntu Board**
+## **Compilation**
+Supports two methods of compiling on X3 Ubuntu system and using Docker cross compilation on PC
+### **Compilation on Ubuntu Board**
 
 1. Compilation Environment Confirmation
    - The X3 Ubuntu system is installed on the board.
@@ -146,9 +148,9 @@ cp -r install/lib/parking_perception/config/ .
 ./install/lib/parking_perception/parking_perception --ros-args --log-level error &
 # Start the web display package
 ./install/lib/websocket/websocket --ros-args -p image_topic:=/image_jpeg -p image_type:=mjpeg -p smart_topic:=/ai_msg_parking_perception --log-level error &
-```# Start parking area search pkg
+# Start parking area search pkg
 ./install/lib/parking_search/parking_search
-
+```
 ## Notes
 
 1. To start the board-end using launch, dependencies need to be installed with the command: `pip3 install lark-parser`. Configuration only needs to be done once on the device, and does not need to be reconfigured after power outage restart.
@@ -194,7 +196,7 @@ cp -r install/lib/parking_perception/config/ .
 [parking_search-4] [WARN] [1662539796.317332964] [ParkingSearchEngine]: Find Target, current count: 399, target count: 400
 [parking_search-4] [WARN] [1662539796.346787673] [ParkingSearchEngine]: do move, direction: 0, step: 0.100000
 [parking_search-4] [WARN] [1662539796.386203756] [ParkingSearchEngine]: Find Target, current count: 400, target count: 400
-```[parking_perception-3] [WARN] [1662539796.428427089] [ParkingSearchEngine]: input fps: 29.90, out fps: 29.74
+[parking_perception-3] [WARN] [1662539796.428427089] [ParkingSearchEngine]: input fps: 29.90, out fps: 29.74
 [parking_search-4] [WARN] [1662539796.465178589] [ParkingSearchEngine]: Parking Area Arrived !!!
 [parking_search-4] [WARN] [1662539796.506218048] [ParkingSearchEngine]: Parking Area Arrived !!!
 [parking_search-4] [WARN] [1662539796.547036881] [ParkingSearchEngine]: Parking Area Arrived !!!
