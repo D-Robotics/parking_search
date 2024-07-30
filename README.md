@@ -114,7 +114,7 @@ colcon build --packages-select parking_search \
 
 ## Run
 
-After successful compilation, copy the generated installation path to the Horizon X3 development board (if compiling on X3, ignore the copying step), and execute the following commands to run:
+After successful compilation, copy the generated installation path to the RDK X3 development board (if compiling on X3, ignore the copying step), and execute the following commands to run:
 
 ### **Ubuntu**
 
